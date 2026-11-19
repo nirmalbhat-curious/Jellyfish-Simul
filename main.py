@@ -8,6 +8,7 @@ from environment.obstacles import Obstacle
 from environment.ocean import PollutionHotspot
 from analysis.metrics import CoverageTracker
 from analysis.graphs import plot_coverage
+from config import EnvironmentConfig
 
 
 # Initialize pygame
@@ -76,12 +77,51 @@ coverage_tracker = CoverageTracker(WIDTH, HEIGHT)
 running = True
 
 # Main simulation loop
+# Main simulation loop
+
 while running:
 
+    # Calculate time elapsed between frames
+    dt = clock.tick(60) / 1000.0
+
+    # Update ocean environment
+    ocean.update(dt)
+
     # Handle events
+
     for event in pygame.event.get():
+
         if event.type == pygame.QUIT:
             running = False
+
+        elif event.type == pygame.KEYDOWN:
+
+            # Temperature controls
+            if event.key == pygame.K_UP:
+                EnvironmentConfig.TEMPERATURE = min(
+                    35, EnvironmentConfig.TEMPERATURE + 1
+                )
+
+            elif event.key == pygame.K_DOWN:
+                EnvironmentConfig.TEMPERATURE = max(
+                    0, EnvironmentConfig.TEMPERATURE - 1
+                )
+
+            # pH controls
+            elif event.key == pygame.K_RIGHT:
+                EnvironmentConfig.PH = min(
+                    9.0, round(EnvironmentConfig.PH + 0.1, 1)
+                )
+
+            elif event.key == pygame.K_LEFT:
+                EnvironmentConfig.PH = max(
+                    6.0, round(EnvironmentConfig.PH - 0.1, 1)
+                )
+
+            # Reset environment
+            elif event.key == pygame.K_r:
+                EnvironmentConfig.TEMPERATURE = 20.0
+                EnvironmentConfig.PH = 8.1
 
     # Background
     screen.fill(OCEAN_BLUE)
@@ -116,12 +156,13 @@ while running:
     # Calculate swarm behaviour
     for jellyfish in jellyfish_swarm:
 
+        # Apply normal flocking
         jellyfish.flock(jellyfish_swarm)
 
-        # Apply ocean current
-        current = ocean.get_current(jellyfish.position)
+        # Apply environmental effects
+        jellyfish.apply_environment(ocean)
 
-        jellyfish.acceleration += current * 0.04
+        jellyfish.apply_pollution(pollution_hotspots, dt)
 
         # Apply obstacle avoidance
         avoidance = jellyfish.avoid_obstacles(obstacles)
@@ -145,11 +186,6 @@ while running:
     for jellyfish in jellyfish_swarm:
 
         jellyfish.update(WIDTH, HEIGHT)
-
-        # Detect pollution
-        for hotspot in pollution_hotspots:
-
-            hotspot.detect(jellyfish)
 
         jellyfish.draw(screen)
 
@@ -186,7 +222,6 @@ while running:
 
     screen.blit(coverage_text, (20, 130))
 
-
     # Display elapsed time
 
     elapsed = coverage_tracker.get_elapsed_time()
@@ -199,11 +234,37 @@ while running:
 
     screen.blit(time_text, (20, 160))
 
+
+    # Environmental dashboard
+
+    temperature_text = font.render(
+        f"Temperature: {EnvironmentConfig.TEMPERATURE:.1f} C",
+        True,
+        WHITE
+    )
+
+    ph_text = font.render(
+        f"Ocean pH: {EnvironmentConfig.PH:.1f}",
+        True,
+        WHITE
+    )
+
+    average_stress = sum(
+        jellyfish.pollution_stress for jellyfish in jellyfish_swarm
+    ) / len(jellyfish_swarm)
+
+    stress_text = font.render(
+        f"Average Pollution Stress: {average_stress:.2f}",
+        True,
+        WHITE
+    )
+
+    screen.blit(temperature_text, (20, 200))
+    screen.blit(ph_text, (20, 230))
+    screen.blit(stress_text, (20, 260))
+
      # Update display
     pygame.display.flip()
-
-    # Maintain 60 FPS
-    clock.tick(60)
 
 plot_coverage(
     coverage_tracker.time_history,

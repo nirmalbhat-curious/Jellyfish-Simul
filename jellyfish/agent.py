@@ -2,6 +2,8 @@ import pygame
 import math
 import random
 
+from config import EnvironmentConfig
+
 
 class Jellyfish:
 
@@ -20,9 +22,11 @@ class Jellyfish:
         self.velocity = self.velocity.normalize()
 
         self.acceleration = pygame.Vector2(0, 0)
-
         self.radius = 12
+
+        # Normal movement parameters
         self.max_speed = 2
+        self.base_max_speed = 2
         self.max_force = 0.05
 
         self.perception = 100
@@ -30,6 +34,131 @@ class Jellyfish:
         self.pulse = 0
 
         self.color = (180, 120, 255)
+
+        # Environmental response variables
+        self.environmental_stress = 0.0
+
+        self.swimming_speed = self.base_max_speed
+
+        self.current_influence = pygame.Vector2(0, 0)
+
+        # Pollution response
+        self.pollution_stress = 0.0
+        self.pollution_exposure = 0.0
+        self.normal_color = self.color
+
+
+    # Environmental response
+    def apply_environment(self, ocean):
+
+        temperature = EnvironmentConfig.TEMPERATURE
+        ph = EnvironmentConfig.PH
+
+        # --------------------------------
+        # Temperature influence
+        # --------------------------------
+
+        temperature_factor = 1 + (temperature - 20) * 0.01
+
+        temperature_factor = max(
+            0.75,
+            min(1.25, temperature_factor)
+        )
+
+        # --------------------------------
+        # pH influence on environmental stress
+        # --------------------------------
+
+        ph_stress = abs(ph - 8.1) / 1.5
+
+        ph_stress = max(0, min(1, ph_stress))
+
+        self.environmental_stress = ph_stress
+
+        # --------------------------------
+        # Calculate swimming speed
+        # --------------------------------
+
+        stress_factor = 1 - (0.25 * self.environmental_stress)
+
+        self.swimming_speed = (
+            self.base_max_speed
+            * temperature_factor
+            * stress_factor
+        )
+
+        self.max_speed = max(
+            EnvironmentConfig.MIN_SWIMMING_SPEED,
+            min(
+                EnvironmentConfig.MAX_SWIMMING_SPEED,
+                self.swimming_speed
+            )
+        )
+
+        # --------------------------------
+        # Ocean current influence
+        # --------------------------------
+
+        current = ocean.get_current(self.position)
+
+        self.current_influence = current
+
+        self.acceleration += current * 0.04
+
+
+    def apply_pollution(self, hotspots, dt):
+
+        exposure = 0.0
+        avoidance = pygame.Vector2(0, 0)
+
+        for hotspot in hotspots:
+
+            distance = self.position.distance_to(hotspot.position)
+            radius = hotspot.detection_radius
+
+            if distance < radius:
+
+                hotspot.detect(self)
+
+                level = max(0, min(1, hotspot.pollution_level))
+
+                influence = level * (1 - distance / radius)
+
+                exposure = max(exposure, influence)
+
+                if distance > 0:
+                    direction = self.position - hotspot.position
+                    avoidance += direction.normalize() * influence
+
+        self.pollution_exposure = exposure
+
+        # Pollution stress builds up and gradually recovers
+        if exposure > 0:
+            self.pollution_stress += exposure * 0.25 * dt
+        else:
+            self.pollution_stress -= 0.08 * dt
+
+        self.pollution_stress = max(
+            0.0, min(1.0, self.pollution_stress)
+        )
+
+        # Pollution reduces swimming speed
+        speed_factor = (
+            1 - 0.35 * exposure - 0.20 * self.pollution_stress
+        )
+
+        self.max_speed = max(
+            EnvironmentConfig.MIN_SWIMMING_SPEED,
+            min(
+                EnvironmentConfig.MAX_SWIMMING_SPEED,
+                self.swimming_speed * speed_factor
+            )
+        )
+
+        # Mild movement away from polluted areas
+        if avoidance.length() > 0:
+            avoidance.scale_to_length(0.04 * exposure)
+            self.acceleration += avoidance
 
     # Separation: Avoid crowding
     def separation(self, swarm):
@@ -199,9 +328,14 @@ class Jellyfish:
 
         size = self.radius + math.sin(self.pulse) * 3
 
+        display_color = (
+            int(180 + 75 * self.pollution_stress),
+            int(120 - 70 * self.pollution_stress),
+            int(255 - 200 * self.pollution_stress)
+        )
         pygame.draw.circle(
             screen,
-            self.color,
+            display_color,
             (x, y),
             int(size)
         )

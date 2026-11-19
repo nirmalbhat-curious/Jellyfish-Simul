@@ -5,19 +5,78 @@ import math
 class Ocean:
 
     def __init__(self):
-        self.current_strength = 0.35
 
-    # Calculate water current at a particular position
+        from config import EnvironmentConfig
+
+        self.config = EnvironmentConfig
+
+        self.current_strength = self.config.CURRENT_STRENGTH
+
+        self.time = 0.0
+
+    # Update ocean environment continuously
+    def update(self, dt):
+        self.time += dt
+
+    # Calculate dynamic ocean current
     def get_current(self, position):
 
         x = position.x
         y = position.y
 
-        horizontal = self.current_strength + 0.15 * math.sin(y * 0.015)
+        t = self.time
 
-        vertical = 0.12 * math.sin(x * 0.01)
+        strength = self.current_strength
+
+        horizontal = (
+            strength
+            + self.config.CURRENT_VARIABILITY
+            * math.sin(y * 0.015 + t * 0.5)
+        )
+
+        vertical = (
+            self.config.CURRENT_VARIABILITY
+            * math.sin(x * 0.01 + t * 0.7)
+        )
 
         return pygame.Vector2(horizontal, vertical)
+
+    # Draw changing current directions
+    def draw_currents(self, screen):
+
+        for x in range(100, 1000, 150):
+
+            for y in range(150, 600, 100):
+
+                position = pygame.Vector2(x, y)
+
+                current = self.get_current(position)
+
+                if current.length() == 0:
+                    continue
+
+                direction = current.normalize() * 35
+
+                end = position + direction
+
+                pygame.draw.line(
+                    screen,
+                    (65, 135, 175),
+                    position,
+                    end,
+                    2
+                )
+
+                back = -direction.normalize() * 9
+
+                p1 = end + back.rotate(30)
+                p2 = end + back.rotate(-30)
+
+                pygame.draw.polygon(
+                    screen,
+                    (65, 135, 175),
+                    [end, p1, p2]
+                )
 
     # Display current direction using arrows
     def draw_currents(self, screen):
