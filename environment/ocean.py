@@ -17,7 +17,21 @@ class Ocean:
     # Update ocean environment continuously
     def update(self, dt):
         self.time += dt
+    
+    
+     # Calculate wave intensity based on temperature
+    def get_wave_amplitude(self):
 
+        temperature = self.config.TEMPERATURE
+
+        return 8 + (temperature * 0.4)
+
+    # Calculate wave speed based on temperature
+    def get_wave_speed(self):
+
+        temperature = self.config.TEMPERATURE
+
+        return 1 + (temperature * 0.05)
     # Calculate dynamic ocean current
     def get_current(self, position):
 
@@ -41,7 +55,28 @@ class Ocean:
 
         return pygame.Vector2(horizontal, vertical)
 
-    # Draw changing current directions
+
+        # Draw dynamic ocean waves
+    def draw_waves(self, screen):
+
+        amplitude = self.get_wave_amplitude()
+        speed = self.get_wave_speed()
+
+        for x in range(0, 1000, 5):
+
+            y = 400 + amplitude * math.sin(
+                x * 0.02 + self.time * speed
+            )
+
+            pygame.draw.circle(
+                screen,
+                (40, 100, 160),
+                (x, int(y)),
+                2
+            )
+
+
+    # Display current direction using arrows
     def draw_currents(self, screen):
 
         for x in range(100, 1000, 150):
@@ -54,40 +89,6 @@ class Ocean:
 
                 if current.length() == 0:
                     continue
-
-                direction = current.normalize() * 35
-
-                end = position + direction
-
-                pygame.draw.line(
-                    screen,
-                    (65, 135, 175),
-                    position,
-                    end,
-                    2
-                )
-
-                back = -direction.normalize() * 9
-
-                p1 = end + back.rotate(30)
-                p2 = end + back.rotate(-30)
-
-                pygame.draw.polygon(
-                    screen,
-                    (65, 135, 175),
-                    [end, p1, p2]
-                )
-
-    # Display current direction using arrows
-    def draw_currents(self, screen):
-
-        for x in range(100, 1000, 150):
-
-            for y in range(150, 600, 100):
-
-                position = pygame.Vector2(x, y)
-
-                current = self.get_current(position)
 
                 direction = current.normalize() * 35
 

@@ -143,6 +143,8 @@ while running:
     # Display ocean currents
     ocean.draw_currents(screen)
 
+    ocean.draw_waves(screen)
+
     # Title
     font = pygame.font.Font(None, 36)
     title = font.render(
