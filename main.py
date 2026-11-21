@@ -1,6 +1,7 @@
 import random
 import pygame
 import sys
+import math
 
 from jellyfish.agent import Jellyfish
 from environment.ocean import Ocean
@@ -30,10 +31,153 @@ WHITE = (255, 255, 255)
 # Clock controls frame rate
 clock = pygame.time.Clock()
 
+# --------------------------------------
+# SIMULATION CONFIGURATION MENU
+# --------------------------------------
+
+jellyfish_count = 20
+hotspot_count = 4
+temperature = 20.0
+ph = 8.1
+
+menu_running = True
+simulation_started = False
+
+menu_font = pygame.font.Font(None, 40)
+small_font = pygame.font.Font(None, 32)
+
+while menu_running:
+
+    screen.fill(OCEAN_BLUE)
+
+    title = menu_font.render(
+        "Jellyfish Simulator Configuration",
+        True,
+        WHITE
+    )
+
+    screen.blit(title, (220, 70))
+
+    # Display selected values
+    settings = [
+        ("Jellyfish", jellyfish_count),
+        ("Pollution Hotspots", hotspot_count),
+        ("Temperature", f"{temperature:.1f} C"),
+        ("Ocean pH", f"{ph:.1f}")
+    ]
+
+    y_positions = [180, 270, 360, 450]
+
+    for i, (label, value) in enumerate(settings):
+
+        text = menu_font.render(
+            f"{label}: {value}",
+            True,
+            WHITE
+        )
+
+        screen.blit(text, (250, y_positions[i]))
+
+        # Minus button
+        minus_button = pygame.Rect(
+            650, y_positions[i], 50, 40
+        )
+
+        # Plus button
+        plus_button = pygame.Rect(
+            720, y_positions[i], 50, 40
+        )
+
+        pygame.draw.rect(screen, LIGHT_BLUE, minus_button)
+        pygame.draw.rect(screen, LIGHT_BLUE, plus_button)
+
+        minus_text = small_font.render("-", True, WHITE)
+        plus_text = small_font.render("+", True, WHITE)
+
+        screen.blit(minus_text, (665, y_positions[i] + 5))
+        screen.blit(plus_text, (735, y_positions[i] + 5))
+
+    # Start button
+    start_button = pygame.Rect(400, 540, 200, 60)
+
+    pygame.draw.rect(screen, (40, 180, 80), start_button)
+
+    start_text = menu_font.render(
+        "START",
+        True,
+        WHITE
+    )
+
+    screen.blit(start_text, (440, 550))
+
+    pygame.display.flip()
+
+    for event in pygame.event.get():
+
+        if event.type == pygame.QUIT:
+
+            pygame.quit()
+            sys.exit()
+
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+
+            mouse_pos = event.pos
+
+            # Jellyfish controls
+            if pygame.Rect(650, 180, 50, 40).collidepoint(mouse_pos):
+                jellyfish_count = max(1, jellyfish_count - 1)
+
+            elif pygame.Rect(720, 180, 50, 40).collidepoint(mouse_pos):
+                jellyfish_count += 1
+
+            # Hotspot controls
+            elif pygame.Rect(650, 270, 50, 40).collidepoint(mouse_pos):
+                hotspot_count = max(1, hotspot_count - 1)
+
+            elif pygame.Rect(720, 270, 50, 40).collidepoint(mouse_pos):
+                hotspot_count += 1
+
+            # Temperature controls
+            elif pygame.Rect(650, 360, 50, 40).collidepoint(mouse_pos):
+                temperature = max(
+                    EnvironmentConfig.MIN_TEMPERATURE,
+                    temperature - 1
+                )
+
+            elif pygame.Rect(720, 360, 50, 40).collidepoint(mouse_pos):
+                temperature = min(
+                    EnvironmentConfig.MAX_TEMPERATURE,
+                    temperature + 1
+                )
+
+            # pH controls
+            elif pygame.Rect(650, 450, 50, 40).collidepoint(mouse_pos):
+                ph = max(
+                    EnvironmentConfig.MIN_PH,
+                    round(ph - 0.1, 1)
+                )
+
+            elif pygame.Rect(720, 450, 50, 40).collidepoint(mouse_pos):
+                ph = min(
+                    EnvironmentConfig.MAX_PH,
+                    round(ph + 0.1, 1)
+                )
+
+            # Start simulation
+            elif start_button.collidepoint(mouse_pos):
+
+                simulation_started = True
+                menu_running = False
+
+
+# Apply selected environmental conditions
+EnvironmentConfig.TEMPERATURE = temperature
+EnvironmentConfig.PH = ph
+
 # Create a swarm of 20 jellyfish
 jellyfish_swarm = []
 
-for i in range(20):
+for i in range(jellyfish_count):
 
     x = random.randint(50, WIDTH - 50)
     y = random.randint(120, HEIGHT - 80)
@@ -43,36 +187,75 @@ for i in range(20):
 # Create ocean environment
 ocean = Ocean()
 
+# Random object placement
+objects = []
+
+
+def get_random_position(radius):
+
+    x = random.randint(radius + 20, 900 - radius)
+    y = random.randint(radius + 20, 500 - radius)
+
+    return x, y
+
+
+def position_is_valid(x, y, radius):
+
+    for ox, oy, other_radius in objects:
+
+        distance = math.sqrt((x - ox) ** 2 + (y - oy) ** 2)
+
+        if distance < radius + other_radius + 20:
+            return False
+
+    return True
+
+
+def generate_object(object_class, radius):
+
+    for _ in range(10000):
+
+        x, y = get_random_position(radius)
+
+        if position_is_valid(x, y, radius):
+
+            objects.append((x, y, radius))
+
+            return object_class(x, y, radius)
+
+    raise RuntimeError("Unable to place object without overlap")
+
+
 # Create underwater obstacles
-obstacles = [
+obstacles = []
 
-    Obstacle(250, 250, 35),
+for _ in range(4):
 
-    Obstacle(500, 400, 45),
+    radius = random.randint(30, 45)
 
-    Obstacle(750, 230, 30),
+    obstacles.append(generate_object(Obstacle, radius))
 
-    Obstacle(850, 480, 40)
 
-]
 
 # Create pollution hotspots
+pollution_hotspots = []
 
-pollution_hotspots = [
+for _ in range(hotspot_count):
 
-    PollutionHotspot(350, 200, 80),
+    radius = random.randint(20, 40)
 
-    PollutionHotspot(650, 350, 60),
-
-    PollutionHotspot(800, 500, 95),
-
-    PollutionHotspot(200, 450, 70)
-
-]
+    pollution_hotspots.append(
+        generate_object(PollutionHotspot, radius)
+    )
 
 # Initialize coverage tracker
 
 coverage_tracker = CoverageTracker(WIDTH, HEIGHT)
+
+# Track pollution detection over time
+detection_history = []
+detection_time_history = []
+last_detection_recorded_time = 0
 
 running = True
 
@@ -198,17 +381,33 @@ while running:
     # Display pollution detection statistics
 
     detected_count = sum(
+
         1 for hotspot in pollution_hotspots
         if hotspot.detected
     )
 
+     # Record pollution detection history
+    elapsed = coverage_tracker.get_elapsed_time()
+
+    if elapsed - last_detection_recorded_time >= 1:
+
+        detection_history.append(detected_count if 'detected_count' in locals() else sum(
+            1 for hotspot in pollution_hotspots if hotspot.detected
+        ))
+
+        detection_time_history.append(elapsed)
+
+        last_detection_recorded_time = elapsed
+
     font = pygame.font.Font(None, 28)
 
     status = font.render(
-        f"Pollution Hotspots Detected: {detected_count}/4",
+        f"Pollution Hotspots Detected: {detected_count}/{hotspot_count}",
         True,
         WHITE
     )
+
+
 
     screen.blit(status, (20, 100))
 
@@ -268,9 +467,13 @@ while running:
      # Update display
     pygame.display.flip()
 
+    if detected_count == hotspot_count:
+        running = False
 plot_coverage(
     coverage_tracker.time_history,
-    coverage_tracker.coverage_history
+    coverage_tracker.coverage_history,
+    detection_time_history,
+    detection_history
 )
 
 # Close pygame
