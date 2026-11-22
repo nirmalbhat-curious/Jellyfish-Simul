@@ -391,9 +391,7 @@ while running:
 
     if elapsed - last_detection_recorded_time >= 1:
 
-        detection_history.append(detected_count if 'detected_count' in locals() else sum(
-            1 for hotspot in pollution_hotspots if hotspot.detected
-        ))
+        detection_history.append(detected_count)
 
         detection_time_history.append(elapsed)
 

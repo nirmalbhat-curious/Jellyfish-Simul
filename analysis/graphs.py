@@ -24,6 +24,10 @@ def plot_coverage(time_history, coverage_history,
     ax2.set_xlabel("Time (seconds)")
     ax2.set_ylabel("Hotspots Detected")
     ax2.set_title("Pollution Detection vs Time")
+
+    ax2.set_ylim(0, max(detection_history) + 1 if detection_history else 1)
+    ax2.set_yticks(range(0, max(detection_history) + 1 if detection_history else 2))
+
     ax2.grid(True)
     ax2.legend()
 

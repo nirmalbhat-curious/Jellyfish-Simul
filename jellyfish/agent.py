@@ -299,6 +299,15 @@ class Jellyfish:
     # Update movement
     def update(self, width, height):
 
+        # Boundary steering
+        boundary_margin = 80
+
+        if self.position.x < boundary_margin:
+            self.acceleration.x += 0.08
+
+        elif self.position.x > width - boundary_margin:
+            self.acceleration.x -= 0.08
+        
         self.velocity += self.acceleration
 
         if self.velocity.length() > self.max_speed:
@@ -309,14 +318,25 @@ class Jellyfish:
         self.acceleration = pygame.Vector2(0, 0)
 
         # Boundary control
-        if self.position.x < 20 or self.position.x > width - 20:
-            self.velocity.x *= -1
+        if self.position.x < 20:
+            self.position.x = 20
+            if self.velocity.x < 0:
+                self.velocity.x *= -1
 
-        if self.position.y < 100 or self.position.y > height - 60:
-            self.velocity.y *= -1
+        elif self.position.x > width - 20:
+            self.position.x = width - 20
+            if self.velocity.x > 0:
+                self.velocity.x *= -1
 
-        self.position.x = max(20, min(width - 20, self.position.x))
-        self.position.y = max(100, min(height - 60, self.position.y))
+        if self.position.y < 100:
+            self.position.y = 100
+            if self.velocity.y < 0:
+                self.velocity.y *= -1
+
+        elif self.position.y > height - 60:
+            self.position.y = height - 60
+            if self.velocity.y > 0:
+                self.velocity.y *= -1
 
         self.pulse += 0.1
 

@@ -43,8 +43,7 @@ class Ocean:
         strength = self.current_strength
 
         horizontal = (
-            strength
-            + self.config.CURRENT_VARIABILITY
+            self.config.CURRENT_VARIABILITY
             * math.sin(y * 0.015 + t * 0.5)
         )
 
